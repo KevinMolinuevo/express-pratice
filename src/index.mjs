@@ -58,3 +58,18 @@ app.listen(PORT, ()=> {
     console.log(`Running on Port ${PORT}`);
 });
 
+app.put("/api/users/:id", (request,response)=> {
+    const {
+        body, 
+        params: { id }, 
+    }= request; 
+
+    const parsedId= parseInt(id);
+    if (isNaN(parsedId)) return response.sendstatus(400);
+
+    const findUserIndex = mockUsers.findIndex((user)=> user.id === parsedId);
+
+    if (findUserIndex === -1) return response.sendStatus(404);
+    mockUsers[findUserIndex] = { id: parsedId, ...body };
+    return response.sendStatus(200);
+});
