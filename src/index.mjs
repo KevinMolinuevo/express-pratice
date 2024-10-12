@@ -4,6 +4,23 @@ const app =express();
 
 app.use(express.json());
 
+const loggingMiddleware = (request, response, next) => {
+    console.log(`${request.method}-${request.url}`);
+    next();
+};
+
+const resolveIndexByUserId = (request, response, next)=>{
+    const {
+        params: { id }, 
+    }= request; 
+    const parsedId= parseInt(id);
+    if (isNaN(parsedId)) return response.sendstatus(400);
+    const findUserIndex = mockUsers.findIndex((user)=> user.id === parsedId);
+    if (findUserIndex === -1) return response.sendStatus(404);
+    request.findUserIndex = findUserIndex;
+    next();
+};
+
 const PORT =process.env.PORT || 3000;
 
 const mockUsers = [
@@ -12,8 +29,13 @@ const mockUsers = [
     {id:3, username: "adam", displayName: "Adam"},
 ]
 
-app.get("/", (request, response)=> {
-    response.status(201).send({ msg: "Hello"});
+app.get("/", 
+    (request, response, next)=>{
+        console.log("Base URL");
+        next();
+    },
+    (request, response) => {
+        response.status(201).send({ msg: "Hello"});
 });
 
 app.get('/api/users', (request, response)=> {
@@ -28,6 +50,8 @@ app.get('/api/users', (request, response)=> {
     return response.send(mockUsers);
 });
 
+
+
 app.post('/api/users', (request, response)=>{
     console.log(request.body);
     const { body }= request;
@@ -37,14 +61,9 @@ app.post('/api/users', (request, response)=>{
 });
 
 
-app.get('/api/users/:id', (request, response)=>{
-    console.log(request.params);
-    const parsedId= parseInt(request.params.id);
-    console.log(parsedId);
-    if (isNaN(parsedId))
-        return response.status(400).send({msg : "Bad Request>"});
-
-    const findUser = mockUsers.find((user)=> user.id=== parsedId);
+app.get('/api/users/:id', resolveIndexByUserId,(request, response)=>{
+    const { findUserIndex } = request;
+    const findUser = mockUsers[findUserIndex];
     if (!findUser) return response.sendStatus(404);
     return response.send(findUser);
 });
@@ -58,43 +77,20 @@ app.listen(PORT, ()=> {
     console.log(`Running on Port ${PORT}`);
 });
 
-app.put("/api/users/:id", (request,response)=> {
-    const {
-        body, 
-        params: { id }, 
-    }= request; 
-
-    const parsedId= parseInt(id);
-    if (isNaN(parsedId)) return response.sendstatus(400);
-
-    const findUserIndex = mockUsers.findIndex((user)=> user.id === parsedId);
-
-    if (findUserIndex === -1) return response.sendStatus(404);
-    mockUsers[findUserIndex] = { id: parsedId, ...body };
+app.put("/api/users/:id", resolveIndexByUserId, (request,response)=> {
+    const {body, findUserIndex}= request; 
+    mockUsers[findUserIndex] = { id:  mockUsers[findUserIndex].id, ...body };
     return response.sendStatus(200);
 });
 
-app.patch('/api/users/:id', (request, response)=>{
-    const {
-        body, 
-        params: { id }, 
-    }= request; 
-    const parsedId= parseInt(id);
-    if (isNaN(parsedId)) return response.sendstatus(400);
-    const findUserIndex = mockUsers.findIndex((user)=> user.id === parsedId);
+app.patch('/api/users/:id', resolveIndexByUserId, (request, response)=>{
+    const {body, findUserIndex}= request; 
     mockUsers[findUserIndex]= {...mockUsers[findUserIndex], ...body};
     return response.sendStatus(200);
 });
 
-app.delete("/api/users/:id", (request, response)=> {
-    const { 
-        params:{id},
-    }= request; 
-
-    const parsedId=parseInt(id);
-    if (isNaN(parsedId)) return response.sendStatus(400);
-    const findUserIndex = mockUsers.findIndex((user)=> user.id === parsedId);
-    if (findUserIndex === -1) return response.sendStatus(404);
+app.delete("/api/users/:id", resolveIndexByUserId,(request, response)=> {
+    const {findUserIndex}= request; 
     mockUsers.splice(findUserIndex, 1);
     return response.sendStatus(200);
 });
